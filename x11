@@ -1,0 +1,45 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+# Open Termux:X11 app
+echo "Opening Termux:X11 app..."
+am start -n com.termux.x11/.MainActivity > /dev/null 2>&1
+sleep 2
+
+# Check if Termux:X11 server is running
+if ! pgrep -f "com.termux.x11.Loader" > /dev/null || [ ! -e "$TMPDIR/.X11-unix/X0" ]; then
+    echo "Starting termux-x11 server..."
+    termux-x11 :0 > /dev/null 2>&1 &
+    sleep 3
+fi
+
+#Export DISPLAY for Termux
+export DISPLAY=:0
+export XDG_RUNTIME_DIR=${TMPDIR}
+
+echo "Starting Xfce4 desktop..."
+
+# Start Xfce4 in a single proot session (in background)
+proot-distro login ubuntu --shared-tmp -- bash -c '
+export DISPLAY=:0
+export PULSE_SERVER=127.0.0.1
+export XDG_RUNTIME_DIR=/tmp
+
+# Start D-Bus
+dbus-daemon --session --fork --address=unix:path=/tmp/dbus-session
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/tmp/dbus-session
+
+# Start Xfce4 components
+xfwm4 &
+sleep 1
+xfdesktop &
+sleep 1
+xfce4-panel &
+sleep 1
+xfce4-terminal &
+
+# Keep the session alive
+while true; do sleep 3600; done
+' &
+
+sleep 5
+echo "Xfce4 started! Check Termux:X11 app."
